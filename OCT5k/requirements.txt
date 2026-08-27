@@ -1,0 +1,11 @@
+torch>=2.0.0
+torchvision
+segmentation-models-pytorch
+albumentations
+opencv-python
+pandas
+matplotlib
+PyYAML
+streamlit
+streamlit-image-coordinates
+scipy

@@ -1,0 +1,24 @@
+model:
+  architecture: "unet"
+  encoder: "resnet34"
+  encoder_weights: "imagenet"
+  in_channels: 3
+  classes: 6
+
+training:
+  batch_size: 4
+  learning_rate: 1.0e-4
+  epochs: 50
+  mixed_precision: true
+  seed: 42
+  early_stopping_patience: 10
+  scheduler_patience: 5
+  scheduler_factor: 0.5
+
+paths:
+  dataset_root: "."
+  splits_dir: "splits"
+  train_csv: "splits/train.csv"
+  val_csv: "splits/val.csv"
+  test_csv: "splits/test.csv"
+  outputs_dir: "outputs"
