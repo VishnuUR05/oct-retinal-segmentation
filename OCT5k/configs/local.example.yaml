@@ -1,0 +1,2 @@
+paths:
+  dataset_root: "YOUR_LOCAL_OCT5K_DATASET_ROOT"

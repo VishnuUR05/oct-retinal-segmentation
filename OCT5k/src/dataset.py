@@ -7,18 +7,38 @@ from torch.utils.data import Dataset
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
+
+import yaml
+from pathlib import Path
+
+def get_dataset_root():
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    baseline_path = os.path.join(base_dir, "configs", "baseline.yaml")
+    with open(baseline_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    local_path = os.path.join(base_dir, "configs", "local.yaml")
+    if os.path.exists(local_path):
+        with open(local_path, 'r') as f:
+            local_config = yaml.safe_load(f)
+            if local_config and 'paths' in local_config and 'dataset_root' in local_config['paths']:
+                return Path(local_config['paths']['dataset_root'])
+    
+    return Path(config['paths'].get('dataset_root', '.'))
+
 class OCTDataset(Dataset):
     def __init__(self, csv_file, transform=None):
         self.df = pd.read_csv(csv_file)
         self.transform = transform
+        self.dataset_root = get_dataset_root()
         
     def __len__(self):
         return len(self.df)
         
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        img_path = row['image_path']
-        mask_path = row['mask_path']
+        img_path = str(self.dataset_root / str(row['image_path']))
+        mask_path = str(self.dataset_root / str(row['mask_path']))
         
         # Load grayscale image
         image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)

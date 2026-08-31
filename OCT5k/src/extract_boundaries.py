@@ -272,7 +272,8 @@ def main():
                 cat = row_meta['category']
                 
                 # Load Ground Truth
-                df_gt = pd.read_csv(row_meta['boundary_path'])
+                dataset_root = get_dataset_root()
+                df_gt = pd.read_csv(str(dataset_root / str(row_meta['boundary_path'])))
                 is_valid, msg = validate_ground_truth(df_gt)
                 if not is_valid:
                     print(f"\nWARNING: GT invalid for {sample_id} ({msg})")
