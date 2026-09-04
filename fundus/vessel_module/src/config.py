@@ -13,7 +13,9 @@ PATIENCE = 10
 THRESHOLD = 0.5
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-BASE_DIR = r"F:\Ait Major Project\fundus\vessel_module"
+import os
+# BASE_DIR is two levels up from src/ (fundus/vessel_module)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_DIR = os.path.join(BASE_DIR, "data", "generated_patches")
 TRAIN_IMG_DIR = os.path.join(DATA_DIR, "train", "images")
 TRAIN_MASK_DIR = os.path.join(DATA_DIR, "train", "masks")

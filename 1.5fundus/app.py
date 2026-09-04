@@ -7,8 +7,12 @@ import pandas as pd
 import cv2
 import importlib
 
-# Add vessel module source path to import inference, postprocessing and biomarkers
-sys.path.append(r"F:\Ait Major Project\fundus\vessel_module\src")
+# Dynamically add the vessel_module/src path so it works regardless of where the repo is cloned
+current_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(current_dir)
+vessel_module_src = os.path.join(repo_root, "fundus", "vessel_module", "src")
+if vessel_module_src not in sys.path:
+    sys.path.append(vessel_module_src)
 
 import torch
 import model_unet
@@ -35,7 +39,7 @@ st.set_page_config(page_title="Fundus Vessel Segmentation", layout="wide")
 def load_vessel_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model_unet.ResNet34UNet(num_classes=1)
-    checkpoint_path = r"F:\Ait Major Project\fundus\vessel_module\checkpoints\best_model.pth"
+    checkpoint_path = os.path.join(repo_root, "fundus", "vessel_module", "checkpoints", "best_model.pth")
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
     model = model.to(device)
@@ -230,7 +234,7 @@ elif app_mode == "Model Validation":
     """)
     st.info("Objective metrics such as Dice and IoU require a reference ground-truth annotation. For a newly uploaded patient image without an expert vessel mask, true segmentation accuracy cannot be automatically calculated.")
 
-    val_split_path = r"F:\Ait Major Project\fundus\outputs\fives_vessel_project\validation_split.csv"
+    val_split_path = os.path.join(repo_root, "fundus", "outputs", "fives_vessel_project", "validation_split.csv")
     if not os.path.exists(val_split_path):
         st.error("Validation split file not found!")
         st.stop()
@@ -338,7 +342,7 @@ elif app_mode == "Model Validation":
                     st.image(error_map, use_container_width=True)
                     
                 # Save outputs securely to outputs dir
-                save_dir = r"F:\Ait Major Project\fundus\outputs\fives_vessel_project\validation_ui_exports"
+                save_dir = os.path.join(repo_root, "fundus", "outputs", "fives_vessel_project", "validation_ui_exports")
                 os.makedirs(save_dir, exist_ok=True)
                 cv2.imwrite(os.path.join(save_dir, f"{selected_stem}_error_map.png"), cv2.cvtColor(error_map, cv2.COLOR_RGB2BGR))
                 st.success(f"Error map temporarily saved to project outputs directory.")

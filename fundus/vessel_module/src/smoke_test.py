@@ -92,10 +92,11 @@ def run_smoke_tests():
     return status, report, params
 
 if __name__ == '__main__':
-    sys.path.append(r"F:\Ait Major Project\fundus\vessel_module\src")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.append(current_dir)
     ok, rep, params = run_smoke_tests()
     
-    out_file = r"F:\Ait Major Project\fundus\outputs\fives_vessel_project\PHASE3A_ARCHITECTURE_AND_SMOKE_TEST_REPORT.md"
+    out_file = os.path.join(os.path.dirname(current_dir), "outputs", "fives_vessel_project", "PHASE3A_ARCHITECTURE_AND_SMOKE_TEST_REPORT.md")
     
     final_rep = f"""# PHASE 3A ARCHITECTURE AND SMOKE TEST REPORT
 
@@ -153,7 +154,7 @@ if __name__ == '__main__':
 - **BCE/Dice loss weights:** 0.5 / 0.5
 - **Early stopping patience:** 10
 - **Validation metric:** Dice Score
-- **Checkpoint location:** `F:\Ait Major Project\fundus\vessel_module\checkpoints\`
+- **Checkpoint location:** `fundus/vessel_module/checkpoints/`
 """
 
     with open(out_file, 'w') as f:

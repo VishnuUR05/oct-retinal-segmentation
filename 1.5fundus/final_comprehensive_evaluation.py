@@ -8,7 +8,11 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-sys.path.append(r"F:\Ait Major Project\fundus\vessel_module\src")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(current_dir)
+vessel_module_src = os.path.join(repo_root, "fundus", "vessel_module", "src")
+if vessel_module_src not in sys.path:
+    sys.path.append(vessel_module_src)
 
 from config import *
 from data_loading import FIVESPatchDataset
@@ -78,7 +82,7 @@ def save_qualitative_result(img_tensor, mask_tensor, pred_tensor, save_path, tit
     plt.close()
 
 def evaluate():
-    output_dir = r"F:\Ait Major Project\fundus\outputs\fives_vessel_project\final_evaluation"
+    output_dir = os.path.join(repo_root, "fundus", "outputs", "fives_vessel_project", "final_evaluation")
     os.makedirs(output_dir, exist_ok=True)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
