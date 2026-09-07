@@ -5,8 +5,6 @@ import pandas as pd
 import cv2
 import torch
 import streamlit as st
-import matplotlib.pyplot as plt
-import segmentation_models_pytorch as smp
 import sys
 
 base_dir = r"D:\AIT Major Project\oct rertinal segmentation\OCT5k"
@@ -15,8 +13,13 @@ if base_dir not in sys.path:
 
 from src.dataset import get_validation_augmentation
 from src.extract_boundaries import extract_raw_boundaries, interpolate_boundaries, calculate_structural_features
+import segmentation_models_pytorch as smp
 
-# Enforce no gradients globally for safety
+from src.explainability import SegmentationGradCAM, calculate_confidence
+from src.report_analysis import generate_fishy_findings
+from src.report_generator import create_pdf_report
+
+# Enforce no gradients globally for standard inference safety
 torch.set_grad_enabled(False)
 
 st.set_page_config(
@@ -128,6 +131,9 @@ def process_image(img_bytes, model, device, transform):
         preds = torch.argmax(logits, dim=1)
         pred_mask = preds[0].cpu().numpy()
         
+        # Calculate confidence
+        conf_map, conf_stats = calculate_confidence(logits)
+        
     # 5. Boundary Extraction using validated project functions
     raw_boundaries = extract_raw_boundaries(pred_mask)
     interp_boundaries, _ = interpolate_boundaries(raw_boundaries)
@@ -135,7 +141,7 @@ def process_image(img_bytes, model, device, transform):
     # 6. Quality Control
     qc_status = check_quality(interp_boundaries)
     
-    return img_rgb, pred_mask, interp_boundaries, qc_status
+    return img_rgb, img_tensor, pred_mask, interp_boundaries, qc_status, conf_map, conf_stats
 
 # ---------------------------------------------------------
 # UI RENDERING
@@ -152,11 +158,14 @@ def draw_ui():
     img_source = st.sidebar.radio("Select source:", ["Upload Image", "Select Existing Dataset Image"])
     
     img_bytes = None
+    filename_meta = "Uploaded Image"
+    dataset_meta = "External/Unknown"
     
     if img_source == "Upload Image":
         uploaded_file = st.sidebar.file_uploader("Upload an OCT Image", type=['png', 'jpg', 'jpeg', 'tif', 'tiff'])
         if uploaded_file is not None:
             img_bytes = uploaded_file.read()
+            filename_meta = uploaded_file.name
     else:
         st.sidebar.markdown("---")
         try:
@@ -173,6 +182,14 @@ def draw_ui():
                     if st.sidebar.button("Load Selected Image"):
                         with open(full_path, "rb") as f:
                             img_bytes = f.read()
+                        filename_meta = os.path.basename(selected_path)
+                        dataset_meta = "OCT5k Test Split"
+                        # Try extracting category if possible
+                        try:
+                            cat = df_test[df_test['image_path'] == selected_path]['category'].values[0]
+                            dataset_meta += f" ({cat})"
+                        except:
+                            pass
                 else:
                     st.sidebar.error(f"Dataset image not found locally at {full_path}")
         except Exception as e:
@@ -187,7 +204,7 @@ def draw_ui():
     if img_bytes:
         with st.spinner("Processing image..."):
             try:
-                img_rgb, pred_mask, boundaries, qc_status = process_image(img_bytes, model, device, transform)
+                img_rgb, img_tensor, pred_mask, boundaries, qc_status, conf_map, conf_stats = process_image(img_bytes, model, device, transform)
                 
                 st.markdown("### Inference Results")
                 
@@ -241,6 +258,8 @@ def draw_ui():
                 st.markdown("---")
                 col_qc, col_feat = st.columns([1, 2])
                 
+                raw_features = calculate_structural_features(boundaries)
+                
                 with col_qc:
                     st.markdown("### Quality Control")
                     if qc_status == "VALID":
@@ -253,19 +272,16 @@ def draw_ui():
                     st.markdown("### Segmentation Classes")
                     st.markdown("""
                     - **Class 0:** Background / above ILM (Black)
-                    - **Class 1:** ILM–OPL (Red)
-                    - **Class 2:** OPL–IS-OS (Green)
-                    - **Class 3:** IS-OS–IBRPE (Blue)
-                    - **Class 4:** IBRPE–OBRPE (Yellow)
+                    - **Class 1:** ILM-OPL (Red)
+                    - **Class 2:** OPL-IS-OS (Green)
+                    - **Class 3:** IS-OS-IBRPE (Blue)
+                    - **Class 4:** IBRPE-OBRPE (Yellow)
                     - **Class 5:** Below OBRPE (Magenta)
                     """)
                     
                 with col_feat:
                     st.markdown("### Structural Features")
                     st.markdown("*Note: Image-domain thickness (pixels). Do not assume physical micrometer conversion.*")
-                    
-                    # Compute using core project function
-                    raw_features = calculate_structural_features(boundaries)
                     
                     # Reformat into the UI DataFrame
                     features_df_data = []
@@ -289,7 +305,77 @@ def draw_ui():
                         
                     df_features = pd.DataFrame(features_df_data).set_index('Feature')
                     st.dataframe(df_features, use_container_width=True)
+                    
+                st.markdown("---")
                 
+                # ---------------------------------------------------------------------
+                # XAI REPORT SECTION
+                # ---------------------------------------------------------------------
+                st.markdown("## Explainable AI & Clinical-Style Analysis Report")
+                st.markdown("This section generates a comprehensive technical report including Grad-CAM explainability, technical anomaly detection, and automated insights. **Not a clinical diagnosis tool.**")
+                
+                gradcam_targets = {
+                    "All Retinal Layers (1-4)": [1, 2, 3, 4],
+                    "ILM-OPL (Class 1)": 1,
+                    "OPL-IS-OS (Class 2)": 2,
+                    "IS-OS-IBRPE (Class 3)": 3,
+                    "IBRPE-OBRPE (Class 4)": 4
+                }
+                
+                selected_target_name = st.selectbox("Select Grad-CAM Target:", list(gradcam_targets.keys()))
+                
+                if st.button("Generate Explainable AI Report"):
+                    with st.spinner("Generating Explainable AI Report and PDF..."):
+                        # 1. Generate Grad-CAM
+                        try:
+                            # Using final decoder layer before segmentation head for high spatial resolution
+                            gradcam = SegmentationGradCAM(model, target_layer_name='decoder.blocks.4.conv2.0')
+                            heatmap = gradcam.generate(img_tensor, gradcam_targets[selected_target_name])
+                        except Exception as e:
+                            st.error(f"Grad-CAM computation failed: {e}")
+                            heatmap = None
+                            
+                        # 2. Generate Fishy Findings
+                        fishy_warnings, overall_status = generate_fishy_findings(boundaries, qc_status, conf_stats, raw_features)
+                        
+                        # 3. Generate PDF
+                        try:
+                            pdf_bytes = create_pdf_report(
+                                img_rgb=img_rgb,
+                                pred_mask=pred_mask,
+                                boundaries=boundaries,
+                                features=raw_features,
+                                qc_status=qc_status,
+                                confidence_map=conf_map,
+                                confidence_stats=conf_stats,
+                                gradcam_heatmap=heatmap,
+                                gradcam_target_name=selected_target_name,
+                                fishy_warnings=fishy_warnings,
+                                overall_status=overall_status,
+                                filename_meta=filename_meta,
+                                dataset_meta=dataset_meta
+                            )
+                            
+                            st.success("Report Generated Successfully!")
+                            
+                            # Display some key insights in UI before download
+                            st.markdown(f"### Key Finding: {overall_status}")
+                            if fishy_warnings:
+                                for w in fishy_warnings:
+                                    st.warning(f"**{w['issue']}** ({w['severity']}): {w['reason']}")
+                            else:
+                                st.info("No major technical anomalies detected.")
+                                
+                            st.download_button(
+                                label="Download PDF Report",
+                                data=pdf_bytes,
+                                file_name=f"OCT_XAI_Report_{filename_meta.replace('.png', '').replace('.jpg', '')}.pdf",
+                                mime="application/pdf"
+                            )
+                            
+                        except Exception as e:
+                            st.error(f"Failed to generate PDF Report: {e}")
+                            
             except Exception as e:
                 st.error(f"Error during processing: {e}")
 
