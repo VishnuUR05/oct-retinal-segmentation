@@ -41,6 +41,49 @@ Detection/
 OCT5k/Images/
 OCT5k/Masks/
 OCT5k/Boundaries/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE / Secrets
+.vscode/
+.idea/
+.env
+
+# Large archives
+*.zip
+*.rar
+*.7z
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+
+# Output directories
+outputs/
+OCT5k/outputs/
+
+# Datasets and Image Folders
+Images/
+Masks/
+Boundaries/
+CellData/
+Macular Dataset-Heidelberg/
+Macular-Dataset-R.Rasti_old/
+Detection/
+
+# Dataset specific paths to be safe
+OCT5k/Images/
+OCT5k/Masks/
+OCT5k/Boundaries/
 OCT5k/CellData/
 OCT5k/Macular Dataset-Heidelberg/
 OCT5k/Macular-Dataset-R.Rasti_old/
@@ -48,3 +91,5 @@ OCT5k/Detection/
 
 # Jupyter Notebooks
 .ipynb_checkpoints/
+FIVES A Fundus Image Dataset for AI-based Vessel Segmentation/
+checkpoints/

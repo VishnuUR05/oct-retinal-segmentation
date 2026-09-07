@@ -90,7 +90,7 @@ def evaluate():
     
     checkpoint_path = os.path.join(CHECKPOINT_DIR, "best_model.pth")
     checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint)
     model = model.to(device)
     model.eval()
     

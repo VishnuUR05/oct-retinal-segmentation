@@ -41,7 +41,11 @@ def load_vessel_model():
     model = model_unet.ResNet34UNet(num_classes=1)
     checkpoint_path = os.path.join(repo_root, "fundus", "vessel_module", "checkpoints", "best_model.pth")
     checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        checkpoint = checkpoint['model_state_dict']
+    elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+        checkpoint = checkpoint['state_dict']
+    model.load_state_dict(checkpoint)
     model = model.to(device)
     model.eval()
     return model, device
@@ -147,38 +151,38 @@ if app_mode == "Fundus Analysis":
             
             with diag_cols[0]:
                 st.markdown("**1. Original Image**")
-                st.image(image, use_container_width=True)
+                st.image(image, use_column_width=True)
                 st.markdown("**5. Binary Mask (Before Post-processing)**")
-                st.image((raw_binary_mask.astype(np.uint8)*255), use_container_width=True)
+                st.image((raw_binary_mask.astype(np.uint8)*255), use_column_width=True)
                 st.markdown("**9. Final Vessel Mask**")
-                st.image(clean_mask, use_container_width=True)
+                st.image(clean_mask, use_column_width=True)
                 
             with diag_cols[1]:
                 st.markdown("**2. Raw Probability Map**")
                 prob_display = (prob_map * 255).astype(np.uint8)
-                st.image(prob_display, use_container_width=True)
+                st.image(prob_display, use_column_width=True)
                 st.markdown("**6. FOV Mask**")
-                st.image(fov_mask, use_container_width=True)
+                st.image(fov_mask, use_column_width=True)
                 st.markdown("**10. Skeleton**")
-                st.image(skeleton_mask, use_container_width=True)
+                st.image(skeleton_mask, use_column_width=True)
                 
             with diag_cols[2]:
                 st.markdown("**3. Probability Heatmap**")
                 heatmap = cv2.applyColorMap((prob_map * 255).astype(np.uint8), cv2.COLORMAP_JET)
                 heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-                st.image(heatmap, use_container_width=True)
+                st.image(heatmap, use_column_width=True)
                 st.markdown("**7. Mask After FOV processing**")
-                st.image(mask_after_fov, use_container_width=True)
+                st.image(mask_after_fov, use_column_width=True)
                 st.markdown("**11. Vessel Overlay**")
                 overlay = image_np.copy()
                 overlay[clean_mask > 0] = [0, 255, 0]
-                st.image(overlay, use_container_width=True)
+                st.image(overlay, use_column_width=True)
                 
             with diag_cols[3]:
                 st.markdown("**4. Histogram**")
                 st.bar_chart(np.histogram(prob_flat, bins=50, range=(0.0, 1.0))[0])
                 st.markdown("**8. Mask After small-object removal**")
-                st.image((mask_after_small_obj*255).astype(np.uint8), use_container_width=True)
+                st.image((mask_after_small_obj*255).astype(np.uint8), use_column_width=True)
                 
         else:
             st.subheader("Image Visualizations")
@@ -186,22 +190,22 @@ if app_mode == "Fundus Analysis":
             
             with col1:
                 st.markdown("**1. Original Fundus Image**")
-                st.image(image, use_container_width=True)
+                st.image(image, use_column_width=True)
                 st.markdown("**4. Skeletonized Vessel Network**")
-                st.image(skeleton_mask, use_container_width=True)
+                st.image(skeleton_mask, use_column_width=True)
                 
             with col2:
                 st.markdown("**2. Vessel Probability Map**")
                 prob_display = (prob_map * 255).astype(np.uint8)
-                st.image(prob_display, use_container_width=True)
+                st.image(prob_display, use_column_width=True)
                 st.markdown("**5. Vessel Overlay on Original Image**")
                 overlay = image_np.copy()
                 overlay[clean_mask > 0] = [0, 255, 0]
-                st.image(overlay, use_container_width=True)
+                st.image(overlay, use_column_width=True)
                 
             with col3:
                 st.markdown("**3. Clean Binary Vessel Mask**")
-                st.image(clean_mask, use_container_width=True)
+                st.image(clean_mask, use_column_width=True)
             
         vessel_percentage = bm["vessel_density_percent"]
         if vessel_percentage < 0.1 or np.sum(clean_mask) < 500:
@@ -330,16 +334,16 @@ elif app_mode == "Model Validation":
                 
                 with col1:
                     st.markdown("**1. Original Fundus Image**")
-                    st.image(img_pil, use_container_width=True)
+                    st.image(img_pil, use_column_width=True)
                 with col2:
                     st.markdown("**2. Reference Ground Truth Mask**")
-                    st.image(gt_mask_pil, use_container_width=True)
+                    st.image(gt_mask_pil, use_column_width=True)
                 with col3:
                     st.markdown("**3. AI Predicted Vessel Mask**")
-                    st.image((pred_binary*255).astype(np.uint8), use_container_width=True)
+                    st.image((pred_binary*255).astype(np.uint8), use_column_width=True)
                 with col4:
                     st.markdown("**4. Pixel-wise Comparison / Error Map**")
-                    st.image(error_map, use_container_width=True)
+                    st.image(error_map, use_column_width=True)
                     
                 # Save outputs securely to outputs dir
                 save_dir = os.path.join(repo_root, "fundus", "outputs", "fives_vessel_project", "validation_ui_exports")
